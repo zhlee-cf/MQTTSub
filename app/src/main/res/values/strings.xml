@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">MQTTDemo</string>
+    <string name="startService">开启服务</string>
+    <string name="stopService">关闭服务</string>
+</resources>
