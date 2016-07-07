@@ -205,6 +205,7 @@ public class MQTTService extends Service implements MqttCallback {
             mqttClient.subscribe(TOPIC, 2);
             mqttClient.setCallback(MQTTService.this);
             mStarted = true;
+            MyLog.showLog("连接服务器成功");
         } catch (MqttException e) {
             e.printStackTrace();
         }
@@ -247,6 +248,7 @@ public class MQTTService extends Service implements MqttCallback {
             reconnectIfNecessary();
         } catch (MqttException ex) {
             ex.printStackTrace();
+            MyLog.showLog("异常::" + ex.toString());
 //                reconnectIfNecessary();
 //                stopPush();
         }
@@ -279,7 +281,6 @@ public class MQTTService extends Service implements MqttCallback {
     private boolean isNetworkAvailable() {
         NetworkInfo info = mConnectivityManager.getActiveNetworkInfo();
         return (info != null) && info.isConnected() && info.isAvailable();
-
     }
 
     /**
@@ -317,6 +318,7 @@ public class MQTTService extends Service implements MqttCallback {
         }
         MqttMessage message = new MqttMessage(MQTT_KEEP_ALIVE_MESSAGE);
         message.setQos(MQTT_KEEP_ALIVE_QOS);
+        MyLog.showLog("isConnected::" + isConnected());
         return mKeepAliveTopic.publish(message);
     }
 
@@ -341,6 +343,7 @@ public class MQTTService extends Service implements MqttCallback {
         MyLog.showLog("MQTT断开连接");
 //        stopKeepAlive();
         mqttClient = null;
+        mKeepAliveTopic = null;
         if (isNetworkAvailable()) {
             reconnectIfNecessary();
         }
