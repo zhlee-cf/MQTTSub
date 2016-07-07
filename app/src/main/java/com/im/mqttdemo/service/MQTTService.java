@@ -16,19 +16,21 @@ import android.os.PowerManager;
 import android.support.annotation.Nullable;
 import android.telephony.TelephonyManager;
 
-import com.im.mqttdemo.utils.MyLog;
 import com.im.mqttdemo.R;
 import com.im.mqttdemo.activity.MainActivity;
+import com.im.mqttdemo.utils.MyLog;
+import com.im.mqttdemo.utils.ThreadUtil;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.MqttTopic;
 import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Locale;
 
 /**
@@ -81,6 +83,8 @@ public class MQTTService extends Service implements MqttCallback {
     private static final String MQTT_KEEP_ALIVE_TOPIC_FORMAT = "MQTT-KEEP-ALIVE";
     // 心跳包的发送级别默认最低
     private static final int MQTT_KEEP_ALIVE_QOS = 0;
+    // 时间格式
+    private SimpleDateFormat ft;
 
     /**
      * 启动推送服务
@@ -129,6 +133,7 @@ public class MQTTService extends Service implements MqttCallback {
      */
     private void initData() {
         ctx = this;
+        ft = new SimpleDateFormat("HH:mm:ss", Locale.US);
         TelephonyManager telephonyManager = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
         deviceId = telephonyManager.getDeviceId();
         mDataStore = new MqttDefaultFilePersistence(getCacheDir().getAbsolutePath());
@@ -142,8 +147,8 @@ public class MQTTService extends Service implements MqttCallback {
      * 判断ACTION进行不同的操作
      */
     public int onStartCommand(Intent intent, int flags, int startId) {
-        String action = intent.getAction();
-        if (action != null) {
+        if (intent != null && intent.getAction() != null) {
+            String action = intent.getAction();
             if (action.equals(ACTION_START)) {
                 startPush();
             } else if (action.equals(ACTION_STOP)) {
@@ -155,6 +160,9 @@ public class MQTTService extends Service implements MqttCallback {
                     reconnectIfNecessary();
                 }
             }
+        } else {
+            MyLog.showLog("intent::" + intent);
+            startPush();
         }
         // 粘性
         return super.onStartCommand(intent, START_STICKY, startId);
@@ -199,17 +207,22 @@ public class MQTTService extends Service implements MqttCallback {
      * 连接到推送服务器与适当的数据存储
      */
     private synchronized void connectToServer() {
-        try {
-            mqttClient = new MqttClient(BROKER_URL, deviceId, mDataStore);
-            mqttClient.connect();
-            mqttClient.subscribe(TOPIC, 2);
-            mqttClient.setCallback(MQTTService.this);
-            mStarted = true;
-            MyLog.showLog("连接服务器成功");
-        } catch (MqttException e) {
-            e.printStackTrace();
-        }
-        startKeepAlive();
+        ThreadUtil.runOnBackThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    mqttClient = new MqttClient(BROKER_URL, deviceId, mDataStore);
+                    mqttClient.connect();
+                    mqttClient.subscribe(TOPIC, 2);
+                    mqttClient.setCallback(MQTTService.this);
+                    mStarted = true;
+                    MyLog.showLog("连接服务器成功" + "--当前线程--" + Thread.currentThread().getName());
+                } catch (MqttException e) {
+                    e.printStackTrace();
+                }
+                startKeepAlive();
+            }
+        });
     }
 
     /**
@@ -240,28 +253,7 @@ public class MQTTService extends Service implements MqttCallback {
         MyLog.showLog("发送心跳包");
         // 因为有个闹铃发送心跳包，正好可以借这个闹铃唤醒CPU
         acquireCPU();
-//        if (isConnected()) {
-        try {
-            sendKeepAlive();
-        } catch (MqttConnectivityException ex) {
-            ex.printStackTrace();
-            reconnectIfNecessary();
-        } catch (MqttException ex) {
-            ex.printStackTrace();
-            MyLog.showLog("异常::" + ex.toString());
-//                reconnectIfNecessary();
-//                stopPush();
-        }
-//        } else {
-//            reconnectIfNecessary();
-//        }
-    }
-
-    /**
-     * 自定义的Exception
-     */
-    private class MqttConnectivityException extends Exception {
-        private static final long serialVersionUID = -7385866796799469420L;
+        sendKeepAlive();
     }
 
     /**
@@ -303,6 +295,7 @@ public class MQTTService extends Service implements MqttCallback {
             } else {
                 stopKeepAlive();
                 mqttClient = null;
+                mKeepAliveTopic = null;
             }
         }
     };
@@ -310,16 +303,26 @@ public class MQTTService extends Service implements MqttCallback {
     /**
      * 发送保持连接的指定的主题
      */
-    private synchronized MqttDeliveryToken sendKeepAlive() throws MqttConnectivityException, MqttException {
-        if (!isConnected())
-            throw new MqttConnectivityException();
-        if (mKeepAliveTopic == null) {
-            mKeepAliveTopic = mqttClient.getTopic(String.format(Locale.US, MQTT_KEEP_ALIVE_TOPIC_FORMAT, deviceId));
-        }
-        MqttMessage message = new MqttMessage(MQTT_KEEP_ALIVE_MESSAGE);
-        message.setQos(MQTT_KEEP_ALIVE_QOS);
-        MyLog.showLog("isConnected::" + isConnected());
-        return mKeepAliveTopic.publish(message);
+    private synchronized void sendKeepAlive() {
+        ThreadUtil.runOnBackThread(new Runnable() {
+            @Override
+            public void run() {
+                if (mKeepAliveTopic == null && mqttClient != null) {
+                    mKeepAliveTopic = mqttClient.getTopic(String.format(Locale.US, MQTT_KEEP_ALIVE_TOPIC_FORMAT, deviceId));
+                }
+                MqttMessage message = new MqttMessage(MQTT_KEEP_ALIVE_MESSAGE);
+                message.setQos(MQTT_KEEP_ALIVE_QOS);
+                MyLog.showLog("isConnected::" + isConnected() + "--当前线程--" + Thread.currentThread().getName());
+                try {
+                    if (mKeepAliveTopic != null)
+                        mKeepAliveTopic.publish(message);
+                } catch (MqttException e) {
+                    reconnectIfNecessary();
+                    MyLog.showLog("发送心跳包失败::" + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 
     /**
@@ -341,7 +344,8 @@ public class MQTTService extends Service implements MqttCallback {
      */
     public void connectionLost(Throwable throwable) {
         MyLog.showLog("MQTT断开连接");
-//        stopKeepAlive();
+        // TODO 断开链接时，关闭了心跳闹铃
+        stopKeepAlive();
         mqttClient = null;
         mKeepAliveTopic = null;
         if (isNetworkAvailable()) {
@@ -355,7 +359,7 @@ public class MQTTService extends Service implements MqttCallback {
      */
     public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {
         String msg = new String(mqttMessage.getPayload(), "UTF-8");
-        newMsgNotify(msg);
+        newMsgNotify(msg + "**" + ft.format(new Date()));
     }
 
     @Override
