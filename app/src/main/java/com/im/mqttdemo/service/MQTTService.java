@@ -24,6 +24,7 @@ import com.im.mqttdemo.utils.ThreadUtil;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.MqttTopic;
@@ -42,7 +43,7 @@ public class MQTTService extends Service implements MqttCallback {
     // 服务器地址及端口号
     public static final String BROKER_URL = "tcp://q.emqtt.com:1883";
     // 订阅的主题，与发送端一样
-    public static final String TOPIC = "MQTT-Demo";
+    public static final String TOPIC = "MQTT-Demo-1";
     // 接收端对象
     private MqttClient mqttClient;
     // 设备号，作为客户端唯一标识，获取需要权限
@@ -85,6 +86,8 @@ public class MQTTService extends Service implements MqttCallback {
     private static final int MQTT_KEEP_ALIVE_QOS = 0;
     // 时间格式
     private SimpleDateFormat ft;
+    // 创建连接时附加的一些属性
+    private MqttConnectOptions options;
 
     /**
      * 启动推送服务
@@ -194,6 +197,7 @@ public class MQTTService extends Service implements MqttCallback {
             try {
                 mqttClient.disconnect();
                 mqttClient = null;
+                mKeepAliveTopic = null;
                 mStarted = false;
             } catch (MqttException e) {
                 e.printStackTrace();
@@ -212,7 +216,15 @@ public class MQTTService extends Service implements MqttCallback {
             public void run() {
                 try {
                     mqttClient = new MqttClient(BROKER_URL, deviceId, mDataStore);
-                    mqttClient.connect();
+                    // MQTT的连接设置
+                    options = new MqttConnectOptions();
+                    // 设置是否清空session,这里如果设置为false则服务器会在客户端掉线后存储Qos 1和2的消息(持久化)
+                    options.setCleanSession(false);
+                    // 设置超时时间 单位为秒
+                    options.setConnectionTimeout(10);
+                    // 设置会话心跳时间 单位为秒 服务器会每隔1.5*20秒的时间向客户端发送个消息判断客户端是否在线，但这个方法并没有重连的机制
+                    options.setKeepAliveInterval(20);
+                    mqttClient.connect(options);
                     mqttClient.subscribe(TOPIC, 2);
                     mqttClient.setCallback(MQTTService.this);
                     mStarted = true;
@@ -365,9 +377,10 @@ public class MQTTService extends Service implements MqttCallback {
     @Override
     /**
      * 这个字面意思应该是发送完成时回调到此，不知道干嘛的
+     * Called when delivery for a message has been completed, and all acknowledgments have been received.
      */
     public void deliveryComplete(IMqttDeliveryToken iMqttDeliveryToken) {
-
+        MyLog.showLog("---deliveryComplete---" );
     }
 
 
