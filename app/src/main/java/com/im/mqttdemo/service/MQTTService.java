@@ -61,7 +61,7 @@ public class MQTTService extends Service implements MqttCallback {
     // 电源锁 需要权限
     private PowerManager.WakeLock wakeLock;
     // 当前服务实例
-    private MQTTService ctx;
+    private static MQTTService mMQTTService;
     // 通知栏管理者
     private NotificationManager notificationManager;
 
@@ -88,6 +88,7 @@ public class MQTTService extends Service implements MqttCallback {
     private SimpleDateFormat ft;
     // 创建连接时附加的一些属性
     private MqttConnectOptions options;
+    private Notification foregroundNotification;
 
     /**
      * 启动推送服务
@@ -135,7 +136,7 @@ public class MQTTService extends Service implements MqttCallback {
      * 获取设备号要加权限
      */
     private void initData() {
-        ctx = this;
+        mMQTTService = this;
         ft = new SimpleDateFormat("HH:mm:ss", Locale.US);
         TelephonyManager telephonyManager = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
         deviceId = telephonyManager.getDeviceId();
@@ -372,6 +373,7 @@ public class MQTTService extends Service implements MqttCallback {
     public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {
         String msg = new String(mqttMessage.getPayload(), "UTF-8");
         newMsgNotify(msg + "**" + ft.format(new Date()));
+        MyLog.showLog("收到新推送::" + msg);
     }
 
     @Override
@@ -380,7 +382,7 @@ public class MQTTService extends Service implements MqttCallback {
      * Called when delivery for a message has been completed, and all acknowledgments have been received.
      */
     public void deliveryComplete(IMqttDeliveryToken iMqttDeliveryToken) {
-        MyLog.showLog("---deliveryComplete---" );
+        MyLog.showLog("---deliveryComplete---");
     }
 
 
@@ -391,12 +393,12 @@ public class MQTTService extends Service implements MqttCallback {
         CharSequence tickerText = "MQTT新通知！";
         // 收到单人消息时，亮屏
         acquireWakeLock();
-        Intent intent = new Intent(ctx, MainActivity.class);
+        Intent intent = new Intent(mMQTTService, MainActivity.class);
         // 必须添加
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        PendingIntent contentIntent = PendingIntent.getActivity(ctx, 77,
+        PendingIntent contentIntent = PendingIntent.getActivity(mMQTTService, 77,
                 intent, PendingIntent.FLAG_UPDATE_CURRENT);
-        Notification notification = new Notification.Builder(ctx)
+        Notification notification = new Notification.Builder(mMQTTService)
                 .setContentTitle("MQTT").setContentText(messageBody)
                 .setContentIntent(contentIntent).setTicker(tickerText)
                         // 注意 如果不设置icon，可能会不显示通知栏

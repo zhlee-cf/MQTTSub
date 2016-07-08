@@ -22,7 +22,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:name=".service.MQTTService"/>
+        <service android:name=".service.MQTTService">
+            <intent-filter android:priority="1000">
+                <action android:name="action.com.im.mqttdemo.mqttservice"/>
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>
