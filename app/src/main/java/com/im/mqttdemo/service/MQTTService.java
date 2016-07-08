@@ -88,7 +88,6 @@ public class MQTTService extends Service implements MqttCallback {
     private SimpleDateFormat ft;
     // 创建连接时附加的一些属性
     private MqttConnectOptions options;
-    private Notification foregroundNotification;
 
     /**
      * 启动推送服务
@@ -165,7 +164,7 @@ public class MQTTService extends Service implements MqttCallback {
                 }
             }
         } else {
-            MyLog.showLog("intent::" + intent);
+            // 服务启动时，若intent为null，说明服务是被杀后因为 START_STICKY重启的，这时应启动推送服务
             startPush();
         }
         // 粘性
@@ -226,6 +225,7 @@ public class MQTTService extends Service implements MqttCallback {
                     // 设置会话心跳时间 单位为秒 服务器会每隔1.5*20秒的时间向客户端发送个消息判断客户端是否在线，但这个方法并没有重连的机制
                     options.setKeepAliveInterval(20);
                     mqttClient.connect(options);
+                    // 2表示Qos 只收到一次
                     mqttClient.subscribe(TOPIC, 2);
                     mqttClient.setCallback(MQTTService.this);
                     mStarted = true;
@@ -266,6 +266,7 @@ public class MQTTService extends Service implements MqttCallback {
         MyLog.showLog("发送心跳包");
         // 因为有个闹铃发送心跳包，正好可以借这个闹铃唤醒CPU
         acquireCPU();
+        // 发送心跳包
         sendKeepAlive();
     }
 
@@ -314,7 +315,7 @@ public class MQTTService extends Service implements MqttCallback {
     };
 
     /**
-     * 发送保持连接的指定的主题
+     * 发送心跳包指定的主题
      */
     private synchronized void sendKeepAlive() {
         ThreadUtil.runOnBackThread(new Runnable() {
@@ -378,7 +379,7 @@ public class MQTTService extends Service implements MqttCallback {
 
     @Override
     /**
-     * 这个字面意思应该是发送完成时回调到此，不知道干嘛的
+     * 这个字面意思应该是发送完成时回调到此
      * Called when delivery for a message has been completed, and all acknowledgments have been received.
      */
     public void deliveryComplete(IMqttDeliveryToken iMqttDeliveryToken) {
@@ -448,13 +449,4 @@ public class MQTTService extends Service implements MqttCallback {
             }
         }
     }
-
-//    @Override
-//    public void onDestroy() {
-//        try {
-//            mqttClient.disconnect();
-//        } catch (MqttException e) {
-//            e.printStackTrace();
-//        }
-//    }
 }
