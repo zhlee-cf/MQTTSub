@@ -41,13 +41,24 @@ import java.util.Locale;
 public class MQTTService extends Service implements MqttCallback {
 
     // 服务器地址及端口号
-    public static final String BROKER_URL = "tcp://q.emqtt.com:1883";
+//    public static final String BROKER_URL = "tcp://q.emqtt.com:1883";
+    public static final String BROKER_URL = "tcp://openim.top:1883";
     // 订阅的主题，与发送端一样
-    public static final String TOPIC = "MQTT-Demo-1";
+    public static String TOPIC = "MQTT-Demo-1";
     // 接收端对象
     private MqttClient mqttClient;
     // 设备号，作为客户端唯一标识，获取需要权限
-    private String deviceId;
+    private String devId;
+    // 应用id 等于包名
+    private String appId;
+    // 客户端id，clientId= appId/devType/devId
+    private String clientId;
+    // 设备类型
+    private String devType = "android";
+    // 用户名
+    private String username = "lizh";
+    // 密码
+    private String password = "123456";
     // 标识是否是连接状态
     private boolean mStarted;
     // 这个好像是什么文件持久化  暂时没研究
@@ -138,7 +149,10 @@ public class MQTTService extends Service implements MqttCallback {
         mMQTTService = this;
         ft = new SimpleDateFormat("HH:mm:ss", Locale.US);
         TelephonyManager telephonyManager = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
-        deviceId = telephonyManager.getDeviceId();
+        devId = telephonyManager.getDeviceId();
+        appId = getPackageName();
+        clientId = appId + "/" + devType + "/" + devId;
+        TOPIC = appId + "/" + username + "/" + devType + "/" + devId;
         mDataStore = new MqttDefaultFilePersistence(getCacheDir().getAbsolutePath());
         mAlarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
         mConnectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
@@ -215,9 +229,13 @@ public class MQTTService extends Service implements MqttCallback {
             @Override
             public void run() {
                 try {
-                    mqttClient = new MqttClient(BROKER_URL, deviceId, mDataStore);
+                    mqttClient = new MqttClient(BROKER_URL, clientId, mDataStore);
                     // MQTT的连接设置
                     options = new MqttConnectOptions();
+                    // 用户名
+                    options.setUserName(username);
+                    // 密码
+                    options.setPassword(password.toCharArray());
                     // 设置是否清空session,这里如果设置为false则服务器会在客户端掉线后存储Qos 1和2的消息(持久化)
                     options.setCleanSession(false);
                     // 设置超时时间 单位为秒
@@ -322,7 +340,7 @@ public class MQTTService extends Service implements MqttCallback {
             @Override
             public void run() {
                 if (mKeepAliveTopic == null && mqttClient != null) {
-                    mKeepAliveTopic = mqttClient.getTopic(String.format(Locale.US, MQTT_KEEP_ALIVE_TOPIC_FORMAT, deviceId));
+                    mKeepAliveTopic = mqttClient.getTopic(String.format(Locale.US, MQTT_KEEP_ALIVE_TOPIC_FORMAT, devId));
                 }
                 MqttMessage message = new MqttMessage(MQTT_KEEP_ALIVE_MESSAGE);
                 message.setQos(MQTT_KEEP_ALIVE_QOS);
