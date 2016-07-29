@@ -1,4 +1,4 @@
-package com.im.mqttdemo.service;
+package com.im.openpush.service;
 
 import android.app.AlarmManager;
 import android.app.Notification;
@@ -16,10 +16,10 @@ import android.os.PowerManager;
 import android.support.annotation.Nullable;
 import android.telephony.TelephonyManager;
 
-import com.im.mqttdemo.R;
-import com.im.mqttdemo.activity.MainActivity;
-import com.im.mqttdemo.utils.MyLog;
-import com.im.mqttdemo.utils.ThreadUtil;
+import com.im.openpush.R;
+import com.im.openpush.activity.MainActivity;
+import com.im.openpush.utils.MyLog;
+import com.im.openpush.utils.ThreadUtil;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -153,6 +153,7 @@ public class MQTTService extends Service implements MqttCallback {
         appId = getPackageName();
         clientId = appId + "/" + devType + "/" + devId;
         TOPIC = appId + "/" + username + "/" + devType + "/" + devId;
+        MyLog.showLog("topic::" + TOPIC);
         mDataStore = new MqttDefaultFilePersistence(getCacheDir().getAbsolutePath());
         mAlarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
         mConnectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);

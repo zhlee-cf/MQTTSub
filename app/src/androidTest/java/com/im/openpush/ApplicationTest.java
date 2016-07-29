@@ -1,4 +1,4 @@
-package com.im.mqttdemo;
+package com.im.openpush;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;

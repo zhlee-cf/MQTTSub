@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.im.mqttdemo">
+    package="com.im.openpush">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -16,14 +16,14 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <!-- android:excludeFromRecents="true" 不在最近运行列表里展示 但是貌似设置了 很快应用就被杀了-->
-        <activity android:name=".activity.MainActivity">
+        <activity android:name="com.im.openpush.activity.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:name=".service.MQTTService">
+        <service android:name="com.im.openpush.service.MQTTService">
             <intent-filter android:priority="1000">
                 <action android:name="action.com.im.mqttdemo.mqttservice" />
             </intent-filter>

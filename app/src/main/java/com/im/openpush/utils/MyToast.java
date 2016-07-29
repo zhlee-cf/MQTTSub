@@ -1,4 +1,4 @@
-package com.im.mqttdemo.utils;
+package com.im.openpush.utils;
 
 import android.app.Activity;
 import android.widget.Toast;

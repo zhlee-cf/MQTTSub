@@ -1,4 +1,4 @@
-package com.im.mqttdemo;
+package com.im.openpush;
 
 import org.junit.Test;
 
